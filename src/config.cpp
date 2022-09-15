@@ -60,9 +60,9 @@ Config::Config() :
     core_n_kfs(3),
     map_scale(1.0),
     grid_size(25),                    // 75
-    init_min_disparity(20.0),
-    init_min_tracked(50),
-    init_min_inliers(40),
+    init_min_disparity(15.0),
+    init_min_tracked(30),
+    init_min_inliers(20),
     klt_max_level(4), // 4      //6
     klt_min_level(2),  // 2      //4
     reproj_thresh(2.0),  // 2  //6.0
@@ -80,7 +80,7 @@ Config::Config() :
     max_n_kfs(30),   // 10
     img_imu_delay(0.0),
     max_fts(180),    //120
-    quality_min_fts(30),  //50   //20
+    quality_min_fts(20),  //50   //20
     quality_max_drop_fts(40)
 #endif
 {}

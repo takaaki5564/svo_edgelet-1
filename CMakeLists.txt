@@ -2,7 +2,7 @@
 # user build settings
 
 SET(TRACE TRUE)
-SET(HAVE_G2O false)   #TRUE
+SET(HAVE_G2O TRUE)   #TRUE
 
 SET(DEBUG_OUTPUT TRUE) # Only relevant if build without ROS
 
@@ -26,7 +26,8 @@ IF(DEBUG_OUTPUT)
 ENDIF()
 
 # Set build flags, set ARM_ARCHITECTURE environment variable on Odroid
-SET(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -march=native -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
+#SET(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -march=native -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
+SET(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
 IF(DEFINED ENV{ARM_ARCHITECTURE})
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -march=armv7-a")
 ELSE()
@@ -116,7 +117,8 @@ IF(HAVE_G2O)
  # ${G2O_CORE_LIBRARY} ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_CHOLMOD} ${G2O_SOLVER_CSPARSE} ${G2O_SOLVER_DENSE}
   # ${G2O_SOLVER_PCG} ${G2O_TYPES_SBA} cholmod cxsparse
  #)
-  LIST(APPEND LINK_LIBS  g2o_core_d  g2o_solver_csparse_d  g2o_csparse_extension_d g2o_types_sba_d g2o_solver_dense_d g2o_stuff_d g2o_parser_d g2o_solver_pcg_d  cholmod cxsparse )
+  #LIST(APPEND LINK_LIBS  g2o_core_d  g2o_solver_csparse_d  g2o_csparse_extension_d g2o_types_sba_d g2o_solver_dense_d g2o_stuff_d g2o_parser_d g2o_solver_pcg_d  cholmod cxsparse )
+  LIST(APPEND LINK_LIBS  g2o_core  g2o_solver_csparse  g2o_csparse_extension g2o_types_sba g2o_solver_dense g2o_stuff g2o_parser g2o_solver_pcg  cholmod cxsparse )
   LIST(APPEND SOURCEFILES src/bundle_adjustment.cpp)
 ENDIF(HAVE_G2O)
 

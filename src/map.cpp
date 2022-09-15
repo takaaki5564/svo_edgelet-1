@@ -139,8 +139,8 @@ FramePtr Map::getClosestKeyframe(const FramePtr& frame) const
 
 
   // Sort KFs with overlap according to their closeness
-  close_kfs.sort(boost::bind(&std::pair<FramePtr, double>::second, _1) <
-                 boost::bind(&std::pair<FramePtr, double>::second, _2));
+  close_kfs.sort(boost::bind(&std::pair<FramePtr, double>::second, boost::placeholders::_1) <
+                 boost::bind(&std::pair<FramePtr, double>::second, boost::placeholders::_2));
 
   if(close_kfs.front().first != frame)
     return close_kfs.front().first;

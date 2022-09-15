@@ -71,8 +71,8 @@ void Reprojector::reprojectMap(
   map_.getCloseKeyframes(frame, close_kfs);
 
   // Sort KFs with overlap according to their closeness
-  close_kfs.sort(boost::bind(&std::pair<FramePtr, double>::second, _1) <
-                 boost::bind(&std::pair<FramePtr, double>::second, _2));
+  close_kfs.sort(boost::bind(&std::pair<FramePtr, double>::second, boost::placeholders::_1) <
+                 boost::bind(&std::pair<FramePtr, double>::second, boost::placeholders::_2));
 
   // Reproject all mappoints of the closest N kfs with overlap. We only store
   // in which grid cell the points fall.

@@ -129,14 +129,32 @@ int FrameHandlerBase::finishFrameProcessingCommon(
   }
 #endif
 
-  if(dropout == RESULT_FAILURE &&
-      (stage_ == STAGE_DEFAULT_FRAME || stage_ == STAGE_RELOCALIZING ))
-  {
-    stage_ = STAGE_RELOCALIZING;
-    tracking_quality_ = TRACKING_INSUFFICIENT;
+  if(dropout == RESULT_FAILURE) {
+    if(stage_ == STAGE_DEFAULT_FRAME)
+    {
+      SVO_WARN_STREAM("result failed, so go to relocalization");
+      stage_ = STAGE_RELOCALIZING;
+      tracking_quality_ = TRACKING_INSUFFICIENT;
+    }
+    else if(stage_ == STAGE_SECOND_FRAME)
+    {
+      SVO_WARN_STREAM("Second frame failed, so go to first frame");
+      stage_ =     STAGE_FIRST_FRAME;
+    }
+    else if(stage_ == STAGE_RELOCALIZING )
+    {
+      SVO_WARN_STREAM("Relocalize failed, so go to first frame");
+      stage_ =     STAGE_FIRST_FRAME;
+      //set_start_ = false;
+      //resetAll();
+    }
+    else
+    {
+      SVO_WARN_STREAM("Result faulure while stage= " << stage_);
+      //resetAll();
+    }
   }
-  else if (dropout == RESULT_FAILURE)
-    resetAll();
+
   if(set_reset_)
     resetAll();
 
@@ -159,7 +177,8 @@ void FrameHandlerBase::setTrackingQuality(const size_t num_observations,const si
   tracking_quality_ = TRACKING_GOOD;
   if(num_observations < Config::qualityMinFts())
   {
-    SVO_WARN_STREAM_THROTTLE(0.5, "Tracking less than "<< Config::qualityMinFts() <<" features!");
+    SVO_WARN_STREAM_THROTTLE(0.5, "Tracking less than "<< Config::qualityMinFts() <<" features! n= " << num_observations);
+    SVO_WARN_STREAM("Tracking less than "<< Config::qualityMinFts() <<" features! n= " << num_observations);
     tracking_quality_ = TRACKING_INSUFFICIENT;
   }
 

@@ -538,7 +538,7 @@ void EdgeDetector::detect(
 
   int num_feature = 240;
   int n = num_feature - fts.size();
-  if( n > 0)
+  if( n > 0 && fts.size() > 0)
   {
 
     sort(edge_list.begin(), edge_list.end());

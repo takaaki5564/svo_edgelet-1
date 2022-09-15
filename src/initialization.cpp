@@ -64,6 +64,10 @@ InitResult KltHomographyInit::addFirstFrame(FramePtr frame_ref)
 
 InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
 {
+  if(px_prev_.size() < 5){
+    SVO_INFO_STREAM("addSecondFrame: no feature, so return failure");
+    return FAILURE;
+  } 
   //trackKlt(frame_ref_, frame_cur, px_ref_, px_cur_, f_ref_, f_cur_, disparities_);
   trackKlt(frame_ref_, frame_cur,fts_type_, px_ref_, px_cur_, f_ref_, f_cur_, disparities_,img_prev_,px_prev_);
   SVO_INFO_STREAM("Init: KLT tracked "<< disparities_.size() <<" features");
@@ -74,7 +78,11 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   double disparity = svo::getMedian(disparities_);
 
   SVO_INFO_STREAM("Init: KLT "<<disparity<<"px average disparity.");
-  if(disparity < Config::initMinDisparity())
+  if(disparity > 130) {
+    SVO_INFO_STREAM("disparity is too large");
+    return FAILURE;
+  }
+  else if(disparity < Config::initMinDisparity())
     return NO_KEYFRAME;
 
   double sum = std::accumulate(disparities_.begin(), disparities_.end(), 0.0);
@@ -257,7 +265,7 @@ void trackKlt(
 {
   const double klt_win_size = 30.0; //30
   const int klt_max_iter = 30;
-  const double klt_eps = 0.001;
+  const double klt_eps = 0.01;
   vector<uchar> status;
   vector<float> error;
   vector<float> min_eig_vec;

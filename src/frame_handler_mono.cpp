@@ -100,7 +100,7 @@ void FrameHandlerMono::Debug_show_img()
         imshow(s,fptr->debug_img_);
     });
     */
-    cv::waitKey(0);
+    //cv::waitKey(0);
 }
 
 FrameHandlerMono::FrameHandlerMono(svo::AbstractCamera* cam) :
@@ -124,7 +124,7 @@ void FrameHandlerMono::initialize()
           cam_->width(), cam_->height(), Config::gridSize(), Config::nPyrLevels()));
 
   DepthFilter::callback_t depth_filter_cb = boost::bind(
-      &MapPointCandidates::newCandidatePoint, &map_.point_candidates_, _1, _2);
+      &MapPointCandidates::newCandidatePoint, &map_.point_candidates_, boost::placeholders::_1, boost::placeholders::_2);
   depth_filter_ = new DepthFilter(feature_detector,edge_detector ,depth_filter_cb);
   depth_filter_->startThread();
   SVO_INFO_STREAM("initialize end");
@@ -151,15 +151,29 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
 
   // process frame
   UpdateResult res = RESULT_FAILURE;
-  if(stage_ == STAGE_DEFAULT_FRAME)
+  if(stage_ == STAGE_DEFAULT_FRAME){
+    SVO_DEBUG_STREAM("start processFrame()");
     res = processFrame();
-  else if(stage_ == STAGE_SECOND_FRAME)
+    SVO_DEBUG_STREAM("res=" << res);
+  }
+  else if(stage_ == STAGE_SECOND_FRAME){
+    SVO_DEBUG_STREAM("#####start processSecondFrame()");
     res = processSecondFrame();
-  else if(stage_ == STAGE_FIRST_FRAME)
+    SVO_DEBUG_STREAM("res=" << res);
+  }
+  else if(stage_ == STAGE_FIRST_FRAME){
+    SVO_DEBUG_STREAM("######start processFirstFrame()");
     res = processFirstFrame();
-  else if(stage_ == STAGE_RELOCALIZING)
-    res = relocalizeFrame(SE3d(Matrix3d::Identity(), Vector3d::Zero()),
+    SVO_DEBUG_STREAM("res=" << res);
+  }
+  else if(stage_ == STAGE_RELOCALIZING){
+    SVO_DEBUG_STREAM("#####start relocalizeFrame()");
+    //res = relocalizeFrame(SE3d(Matrix3d::Identity(), Vector3d::Zero()),
+    //                      map_.getClosestKeyframe(last_frame_));
+    res = relocalizeFrame(last_frame_->T_f_w_,
                           map_.getClosestKeyframe(last_frame_));
+    SVO_DEBUG_STREAM("res=" << res);
+  }
 
   //if(new_frame_->id_ == 10)
 
@@ -221,7 +235,8 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
   cv::imwrite(ss.str().c_str(), img_new);
 */
   cv::imshow("new_frame",img_new);
-  cv::waitKey(30);
+  //cv::waitKey(30);
+  
   }  // end debuge
 
   // set last frame
@@ -235,7 +250,14 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
 
 FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 {
-  new_frame_->T_f_w_ = SE3d(Matrix3d::Identity(), Vector3d::Zero());
+  if (last_frame_ != NULL) {
+    SVO_DEBUG_STREAM("processFirstFrame set previous pose");
+    new_frame_->T_f_w_ = last_frame_->T_f_w_; // Set previous pose
+  } else {
+    SVO_DEBUG_STREAM("processFirstFrame set zero");
+    new_frame_->T_f_w_ = SE3d(Matrix3d::Identity(), Vector3d::Zero());
+  }
+
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
   new_frame_->setKeyframe();
@@ -248,10 +270,14 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
 {
   initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
-  if(res == initialization::FAILURE)
+  if(res == initialization::FAILURE){
+    new_frame_->T_f_w_ = last_frame_->T_f_w_; // Set previous pose
     return RESULT_FAILURE;
-  else if(res == initialization::NO_KEYFRAME)
+  }
+  else if(res == initialization::NO_KEYFRAME){
+    new_frame_->T_f_w_ = last_frame_->T_f_w_; // Set previous pose
     return RESULT_NO_KEYFRAME;
+  }
 
   // two-frame bundle adjustment
 #ifdef USE_BUNDLE_ADJUSTMENT
@@ -301,6 +327,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_DEBUG_STREAM("Reprojection:\t nPoints = "<<repr_n_mps<<"\t \t nMatches = "<<repr_n_new_references);
   if(repr_n_new_references < Config::qualityMinFts())
   {
+    SVO_WARN_STREAM("Not enough matched features. n_ref= " << repr_n_new_references << " < " << Config::qualityMinFts());
     SVO_WARN_STREAM_THROTTLE(1.0, "Not enough matched features.");
     std::cout<< "\033[1;31m"<<" Not enough matched featrues.  Reproject process failure!"<<" \033[0m" <<std::endl;
     new_frame_->T_f_w_ = last_frame_->T_f_w_; // reset to avoid crazy pose jumps
@@ -324,8 +351,10 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_LOG4(sfba_thresh, sfba_error_init, sfba_error_final, sfba_n_edges_final);
   SVO_DEBUG_STREAM("PoseOptimizer:\t ErrInit = "<<sfba_error_init<<"px\t thresh = "<<sfba_thresh);
   SVO_DEBUG_STREAM("PoseOptimizer:\t ErrFin. = "<<sfba_error_final<<"px\t nObsFin. = "<<sfba_n_edges_final<<"\t delete edges: ="<<new_frame_->fts_.size() - sfba_n_edges_final);
-  if(sfba_n_edges_final < 20)
+  if(sfba_n_edges_final < 20){
+    SVO_WARN_STREAM("sfba_n_edges_final is less than 20, so return failure")
     return RESULT_FAILURE;
+  }
 
   // structure optimization
   SVO_START_TIMER("point_optimizer");
@@ -337,6 +366,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   setTrackingQuality(sfba_n_edges_final,  reprojector_.n_matches_);
   if(tracking_quality_ == TRACKING_INSUFFICIENT)
   {
+    SVO_WARN_STREAM("track quality is low, so set last pose")
     new_frame_->T_f_w_ = last_frame_->T_f_w_; // reset to avoid crazy pose jumps
 
     //Debug
@@ -452,8 +482,17 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
       SVO_INFO_STREAM("Relocalization successful.");
     }
     else
+    {
+      stage_ = STAGE_FIRST_FRAME;
       new_frame_->T_f_w_ = T_f_w_last; // reset to last well localized pose
+    }
     return res;
+  }
+  else{
+    SVO_WARN_STREAM("Failure in relocalization n_tracked= " << img_align_n_tracked << ", stage= " << stage_);
+    SVO_WARN_STREAM("Reset to first frame");
+    stage_ = STAGE_FIRST_FRAME;
+    new_frame_->T_f_w_ = last_frame_->T_f_w_; // reset to last well localized pose
   }
   return RESULT_FAILURE;
 }
@@ -478,6 +517,7 @@ bool FrameHandlerMono::relocalizeFrameAtPose(
 
 void FrameHandlerMono::resetAll()
 {
+  SVO_WARN_STREAM("ResetAll called");
   resetCommon();
   last_frame_.reset();
   new_frame_.reset();
@@ -535,8 +575,8 @@ void FrameHandlerMono::setCoreKfs(size_t n_closest)
 {
   size_t n = min(n_closest, overlap_kfs_.size()-1);
   std::partial_sort(overlap_kfs_.begin(), overlap_kfs_.begin()+n, overlap_kfs_.end(),
-                    boost::bind(&pair<FramePtr, size_t>::second, _1) >
-                    boost::bind(&pair<FramePtr, size_t>::second, _2));
+                    boost::bind(&pair<FramePtr, size_t>::second, boost::placeholders::_1) >
+                    boost::bind(&pair<FramePtr, size_t>::second, boost::placeholders::_2));
   std::for_each(overlap_kfs_.begin(), overlap_kfs_.end(), [&](pair<FramePtr,size_t>& i){core_kfs_.insert(i.first);});
 }
 
