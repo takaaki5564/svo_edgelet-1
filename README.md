@@ -1,3 +1,6 @@
+Modified the original code to build successefully for recent library versions on Ubuntu22.04.
+
+
 # SVO_edgelet
 ChangeList， compare with the origin svo:
 1. add edgelete feature
